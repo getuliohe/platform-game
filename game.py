@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 
-
 import pgzrun
 import random
 from pygame import Rect
-
 
 # --- CONFIGURAÇÕES DO JOGO ---
 WIDTH = 800
@@ -37,14 +35,14 @@ LEVEL_MAP = [
     "                                ",
     "                                ",
     "          C F                   ",
-    "         PPPPPP                 ",
+    "         PPPPPPP                ",
     "                                ",
     "                      C C       ",
     "   C C               PPPPP      ",
     "  PPPPP             E           ",
-    "              E    PPPPP        ",
+    "              E    PPP          ",
     "             PPPP               ",
-    " E       C   C   C              ",
+    " E                              ",
     "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
 ]
 
@@ -113,11 +111,25 @@ class Player(AnimatedCharacter):
         self.actor._flip_x = self.facing_left
 
 class Enemy(AnimatedCharacter):
-    """ Classe para os inimigos. """
+    """ Classe para os inimigos, agora com movimento de patrulha. """
     def __init__(self, pos):
         animations = {'idle': ['frog_idle', 'frog_rest'], 'jump': ['frog_jump']}
         super().__init__(pos, animations, animation_speed=0.4)
         self.actor.bottom = pos[1]
+        
+        # Propriedades para a patrulha
+        self.spawn_x = pos[0]
+        self.patrol_limit_left = self.spawn_x - TILE_SIZE
+        self.patrol_limit_right = self.spawn_x + TILE_SIZE
+        self.speed = -2
+
+    def update(self, dt):
+        """ Atualiza o movimento e a animação do inimigo. """
+        self.actor.x += self.speed
+        if self.actor.x <= self.patrol_limit_left or self.actor.x >= self.patrol_limit_right:
+            self.speed *= -1
+        self.actor._flip_x = self.speed < 0
+        self.update_animation(dt)
 
 class Platform:
     """ Classe para as plataformas estáticas. """
@@ -205,7 +217,8 @@ def update(dt):
             coins.remove(coin); score += 10
             if sfx_on: sounds.sfx_coin.play()
     for enemy in list(enemies):
-        enemy.update_animation(dt)
+        # CORREÇÃO: Chama o update completo do inimigo
+        enemy.update(dt)
         if player.actor.colliderect(enemy.actor):
             if player.velocity_y > 0 and abs(player.actor.bottom - enemy.actor.top) < 15:
                 enemies.remove(enemy); score += 50; player.velocity_y = -7
@@ -233,8 +246,7 @@ def on_mouse_down(pos):
     global game_state, background_music_on, sfx_on
     if game_state == 'menu':
         if start_button.collidepoint(pos):
-            setup_game()
-            game_state = 'playing'
+            setup_game(); game_state = 'playing'
             if background_music_on:
                 music.play('background_music')
                 music.set_volume(0.3)
